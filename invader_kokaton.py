@@ -62,7 +62,7 @@ class Bird(pg.sprite.Sprite):
 class Bomb(pg.sprite.Sprite):
     colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
 
-    def __init__(self, emy: "Enemy", bird: Bird):
+    def __init__(self, emy: "Enemy", bird: Bird, speed=6):
         super().__init__()
         rad = random.randint(8, 18)  # 小さめに
         self.image = pg.Surface((2*rad, 2*rad))
@@ -73,7 +73,7 @@ class Bomb(pg.sprite.Sprite):
         self.vx, self.vy = calc_orientation(emy.rect, bird.rect)  
         self.rect.centerx = emy.rect.centerx
         self.rect.centery = emy.rect.centery+emy.rect.height//2
-        self.speed = 6
+        self.speed = speed
 
     def update(self):
         self.rect.move_ip(self.speed*self.vx, self.speed*self.vy)
@@ -136,9 +136,58 @@ class Score:
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         screen.blit(self.image, self.rect)
 
+def mode_select(screen):
+    title_font = pg.font.SysFont(["Meiryo", "MS Gothic", "Yu Gothic", "Arial Unicode MS"], 36)
+    font = pg.font.SysFont(["Meiryo", "MS Gothic", "Yu Gothic", "Arial Unicode MS"], 56)
+    small_font = pg.font.SysFont(["Meiryo", "MS Gothic", "Yu Gothic", "Arial Unicode MS"], 28)
+    modes = [
+        ("EASY", (0, 255, 0), "初心者向け"),
+        ("NORMAL", (255, 165, 0), "敵の攻撃が速く・強くなります"),
+        ("HARD", (255, 0, 0), "さらに敵の攻撃が速く・強くなります")
+    ]
+    rects = []
+    while True:
+        screen.fill((0, 0, 0))
+        # タイトル
+        title = title_font.render("モードを選択してください", True, (255, 255, 255))
+        screen.blit(title, (WIDTH//2 - title.get_width()//2, 100))
+        for i, (label, color, desc_text) in enumerate(modes):
+            y = 290 + i*150  
+            desc = small_font.render(desc_text, True, (200, 200, 200))
+            screen.blit(desc, (WIDTH//2 - desc.get_width()//2, y - 70))
+            text = font.render(label, True, color)
+            rect = text.get_rect(center=(WIDTH//2, y))
+            screen.blit(text, rect)
+            rects.append((rect, label))
+        pg.display.update()
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                pg.quit()
+                sys.exit()
+            if event.type == pg.MOUSEBUTTONDOWN:
+                mx, my = event.pos
+                for rect, label in rects:
+                    if rect.collidepoint(mx, my):
+                        return label.lower()
+        rects.clear()
+
 def main():
     pg.display.set_caption("インベーダーこうかとん")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
+
+    # --- モードセレクト ---
+    mode = mode_select(screen)
+    # モードごとのパラメータ設定
+    if mode == "easy":
+        bomb_interval = 120   
+        bomb_speed = 5       
+    elif mode == "normal":
+        bomb_interval = 60  
+        bomb_speed = 8        
+    elif mode == "hard":
+        bomb_interval = 30    
+        bomb_speed = 10     
+
     bg_img = pg.image.load(f"fig/stage.jpg")
     bg_img = pg.transform.scale(bg_img, (WIDTH, HEIGHT))
     score = Score()
@@ -146,7 +195,7 @@ def main():
     bird = Bird(3, (WIDTH//2, HEIGHT - 40))
     beams = pg.sprite.Group()
     emys = pg.sprite.Group()
-    bombs = pg.sprite.Group()  # 爆弾グループを追加
+    bombs = pg.sprite.Group()
 
     # 敵を中央寄せで5体×3列配置
     enemy_margin_x = 80
@@ -173,38 +222,33 @@ def main():
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
 
-        # --- 敵の爆弾発射（60フレームごとにランダムな敵から発射） ---
-        if tmr % 60 == 0 and len(emys) > 0:  # ←ここを60に
+        # --- 敵の爆弾発射（モードごとの間隔で） ---
+        if tmr % bomb_interval == 0 and len(emys) > 0:
             emy = random.choice(emys.sprites())
-            bombs.add(Bomb(emy, bird))
+            bombs.add(Bomb(emy, bird, bomb_speed))
 
         screen.blit(bg_img, [0, 0])
 
         # --- ビームと敵・爆弾の当たり判定 ---
-        for beam in list(beams):  # beamsのコピーでループ
-            # まず敵との当たり判定
+        for beam in list(beams):
             hit_emys = pg.sprite.spritecollide(beam, emys, True)
             if hit_emys:
                 beam.kill()
-                # スコア加算などもここで可能
-                continue  # このビームは消えたので次へ
-
-            # 次に爆弾との当たり判定
+                continue
             hit_bombs = pg.sprite.spritecollide(beam, bombs, True)
             if hit_bombs:
                 beam.kill()
-                continue  # このビームは消えたので次へ
+                continue
 
         # --- 爆弾とこうかとんの当たり判定 ---
         if pg.sprite.spritecollide(bird, bombs, True):
-            # GAME OVER表示
             font = pg.font.Font(None, 120)
             text = font.render("GAME OVER", True, (255, 0, 0))
             rect = text.get_rect(center=(WIDTH//2, HEIGHT//2))
             screen.blit(text, rect)
             pg.display.update()
-            pg.time.wait(2000)  # 2秒表示
-            return  # ゲーム終了
+            pg.time.wait(2000)
+            return
 
         emys.update()
         emys.draw(screen)
