@@ -97,6 +97,11 @@ class Beam(pg.sprite.Sprite):
         if check_bound(self.rect) != (True, True):
             self.kill()
 
+class Tougarasi(pg.sprite.Sprite):
+    def __init__(self, bird: Bird):
+        super().__init__()
+        
+
 class Explosion(pg.sprite.Sprite):
     def __init__(self, obj: "Bomb|Enemy", life: int):
         super().__init__()
