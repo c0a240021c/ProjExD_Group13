@@ -165,6 +165,7 @@ def main():
 
     tmr = 0
     clock = pg.time.Clock()
+    start_time = time.time()  # 経過時間計測用
     while True:
         key_lst = pg.key.get_pressed()
         for event in pg.event.get():
@@ -197,14 +198,25 @@ def main():
 
         # --- 爆弾とこうかとんの当たり判定 ---
         if pg.sprite.spritecollide(bird, bombs, True):
-            # GAME OVER表示
+            # GAME OVER表示と経過タイム表示
+            elapsed_time = time.time() - start_time
             font = pg.font.Font(None, 120)
             text = font.render("GAME OVER", True, (255, 0, 0))
-            rect = text.get_rect(center=(WIDTH//2, HEIGHT//2))
+            rect = text.get_rect(center=(WIDTH//2, HEIGHT//2 - 40))
             screen.blit(text, rect)
+            font_time = pg.font.Font(None, 60)
+            time_txt = font_time.render(f"Time: {elapsed_time:.1f}s", True, (255,255,255))
+            rect_time = time_txt.get_rect(center=(WIDTH//2, HEIGHT//2 + 40))
+            screen.blit(time_txt, rect_time)
             pg.display.update()
-            pg.time.wait(2000)  # 2秒表示
+            pg.time.wait(2200)  # 2.2秒表示
             return  # ゲーム終了
+
+        # --- 経過時間の計算と表示（小数1桁まで） ---
+        elapsed_time = time.time() - start_time
+        font_time = pg.font.Font(None, 40)
+        time_txt = font_time.render(f"Time: {elapsed_time:.1f}s", True, (255,255,255))
+        screen.blit(time_txt, (10, 10))
 
         emys.update()
         emys.draw(screen)
