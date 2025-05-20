@@ -137,6 +137,11 @@ class Score:
         screen.blit(self.image, self.rect)
 
 def mode_select(screen):
+    """
+    モードを選ぶための関数
+    難易度:EASY,NORMAL,HARD
+    難易度に応じて敵の強さが変わる
+    """
     title_font = pg.font.SysFont(["Meiryo", "MS Gothic", "Yu Gothic", "Arial Unicode MS"], 36)
     font = pg.font.SysFont(["Meiryo", "MS Gothic", "Yu Gothic", "Arial Unicode MS"], 56)
     small_font = pg.font.SysFont(["Meiryo", "MS Gothic", "Yu Gothic", "Arial Unicode MS"], 28)
