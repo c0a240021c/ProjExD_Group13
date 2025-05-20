@@ -64,13 +64,16 @@ class Bomb(pg.sprite.Sprite):
 
     def __init__(self, emy: "Enemy", bird: Bird):
         super().__init__()
-        rad = random.randint(8, 18)  # 小さめに
-        self.image = pg.Surface((2*rad, 2*rad))
-        color = random.choice(__class__.colors)
-        pg.draw.circle(self.image, color, (rad, rad), rad)
-        self.image.set_colorkey((0, 0, 0))
+        # 爆弾画像を使用（ランダムなサイズで拡大縮小、下側を進行方向に回転、上下反転）
+        orig_img = pg.image.load("fig/bomb.png")
+        orig_img = pg.transform.flip(orig_img, False, True)  # 上下反転
+        dx, dy = calc_orientation(emy.rect, bird.rect)
+        angle = math.degrees(math.atan2(dy, dx)) + 90
+        scale = random.uniform(0.15, 0.5)  # ランダムな倍率（小さめ～標準）
+        img = pg.transform.rotozoom(orig_img, -angle, scale)
+        self.image = img
         self.rect = self.image.get_rect()
-        self.vx, self.vy = calc_orientation(emy.rect, bird.rect)  
+        self.vx, self.vy = dx, dy
         self.rect.centerx = emy.rect.centerx
         self.rect.centery = emy.rect.centery+emy.rect.height//2
         self.speed = 6
@@ -173,8 +176,8 @@ def main():
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
 
-        # --- 敵の爆弾発射（60フレームごとにランダムな敵から発射） ---
-        if tmr % 60 == 0 and len(emys) > 0:  # ←ここを60に
+        # --- 敵の爆弾発射（30フレームごとにランダムな敵から発射） ---
+        if tmr % 30 == 0 and len(emys) > 0:
             emy = random.choice(emys.sprites())
             bombs.add(Bomb(emy, bird))
 
