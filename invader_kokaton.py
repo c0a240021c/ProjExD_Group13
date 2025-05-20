@@ -64,7 +64,7 @@ class Bomb(pg.sprite.Sprite):
 
     def __init__(self, emy: "Enemy", bird: Bird):
         super().__init__()
-        rad = random.randint(10, 50)
+        rad = random.randint(8, 18)  # 小さめに
         self.image = pg.Surface((2*rad, 2*rad))
         color = random.choice(__class__.colors)
         pg.draw.circle(self.image, color, (rad, rad), rad)
@@ -173,8 +173,8 @@ def main():
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
 
-        # --- 敵の爆弾発射（30フレームごとにランダムな敵から発射） ---
-        if tmr % 30 == 0 and len(emys) > 0:
+        # --- 敵の爆弾発射（60フレームごとにランダムな敵から発射） ---
+        if tmr % 60 == 0 and len(emys) > 0:  # ←ここを60に
             emy = random.choice(emys.sprites())
             bombs.add(Bomb(emy, bird))
 
