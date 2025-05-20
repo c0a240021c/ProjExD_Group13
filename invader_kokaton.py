@@ -234,11 +234,13 @@ def main():
             hit_emys = pg.sprite.spritecollide(beam, emys, True)
             if hit_emys:
                 beam.kill()
+                score.value += 10  #スコアが10上がる
                 continue
             hit_bombs = pg.sprite.spritecollide(beam, bombs, True)
             if hit_bombs:
                 beam.kill()
-                continue
+                score.value += 1  #スコアが１上がる
+                continue  # このビームは消えたので次へ
 
         # --- 爆弾とこうかとんの当たり判定 ---
         if pg.sprite.spritecollide(bird, bombs, True):
