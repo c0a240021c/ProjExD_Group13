@@ -17,6 +17,7 @@ import os
 import random
 import sys
 import time
+from typing import Sequence
 import pygame as pg
 
 WIDTH = 600  # 幅を広げる
@@ -60,7 +61,7 @@ class Bird(pg.sprite.Sprite):
         self.image = pg.transform.rotozoom(pg.image.load(f"fig/{num}.png"), 0, 0.9)
         screen.blit(self.image, self.rect)
 
-    def update(self, key_lst: list[bool], screen: pg.Surface):
+    def update(self, key_lst: Sequence[bool], screen: pg.Surface):
         sum_mv = [0, 0]
         for k, mv in __class__.delta.items():
             if key_lst[k]:
@@ -110,6 +111,33 @@ class Beam(pg.sprite.Sprite):
         self.rect.move_ip(self.speed*self.vx, self.speed*self.vy)
         if check_bound(self.rect) != (True, True):
             self.kill()
+
+class FireBeam(pg.sprite.Sprite):
+    def __init__(self, bird: Bird):
+        super().__init__()
+        self.vx, self.vy = 0, -1
+        angle = 90  # 上向き
+        self.image = pg.transform.rotozoom(pg.image.load(f"fig/fire.png"), angle, 1.0)
+        self.rect = self.image.get_rect()
+        self.rect.centerx = bird.rect.centerx
+        self.rect.bottom = bird.rect.top
+        self.speed = 10
+
+    def update(self):
+        self.rect.move_ip(self.speed*self.vx, self.speed*self.vy)
+        if check_bound(self.rect) != (True, True):
+            self.kill()
+
+class Tougarasi(pg.sprite.Sprite):
+    def __init__(self, bird: Bird):
+        super().__init__()
+        self.image = pg.image.load(f"fig/tougarasi.png")
+        self.rect = self.image.get_rect()
+        exsitaitem = random.randint(0,600)
+        self.rect.bottomright = (exsitaitem, HEIGHT - 40)
+    
+    def update(self, screen: pg.Surface):
+        screen.blit(self.image, self.rect)
 
 class Explosion(pg.sprite.Sprite):
     def __init__(self, obj: "Bomb|Enemy", life: int):
@@ -285,6 +313,8 @@ def main():
     beams = pg.sprite.Group()
     emys = pg.sprite.Group()
     bombs = pg.sprite.Group()
+    bombs = pg.sprite.Group()  # 爆弾グループを追加
+    tougarasi = pg.sprite.Group()
 
     # 敵を中央寄せで5体×3列配置
     enemy_margin_x = 80
@@ -306,13 +336,32 @@ def main():
     tmr = 0
     clock = pg.time.Clock()
     start_time = time.time()  # 経過時間計測用
+    fire_mode = False
+    fire_start = 0
+    fire_duration = 200  # 4秒(50fps×4)
     while True:
         key_lst = pg.key.get_pressed()
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
-                beams.add(Beam(bird))
+                if fire_mode:
+                    beams.add(FireBeam(bird))
+                else:
+                    beams.add(Beam(bird))
+
+        # --- とうがらし出現 ---
+        if tmr % 200 == 0:
+            tougarasi.add(Tougarasi(bird))
+        # --- とうがらし取得判定 ---
+        for t in list(tougarasi):
+            if bird.rect.colliderect(t.rect):
+                tougarasi.remove(t)
+                fire_mode = True
+                fire_start = tmr
+        # --- fireモード時間管理 ---
+        if fire_mode and tmr - fire_start > fire_duration:
+            fire_mode = False
 
         # --- 敵の爆弾発射（モードごとの間隔で） ---
         if tmr % bomb_interval == 0 and len(emys) > 0:
@@ -345,17 +394,6 @@ def main():
                 continue
 
 
-        # # --- 爆弾と壁の当たり判定 ---
-        # for bomb in list(bombs):
-        #     hit_walls = pg.sprite.spritecollide(bomb, walls, True)
-        #     if hit_walls:
-        #         bomb.kill()
-
-        #     # 壁との当たり判定
-        #     hit_walls = pg.sprite.spritecollide(beam, walls, True)
-        #     if hit_walls:
-        #         beam.kill()
-        #         continue
 
 
         # --- 爆弾と壁の当たり判定 ---
@@ -364,16 +402,17 @@ def main():
             if hit_walls:
                 bomb.kill()
 
-        # --- 爆弾とこうかとんの当たり判定 ---
-        # if pg.sprite.spritecollide(bird, bombs, True):
-            # GAME OVER表示と経過タイム表示
-            # elapsed_time = time.time() - start_time
+        
 
-        # --- 爆弾とこうかとんの当たり判定 ---
+        # # --- 爆弾とこうかとんの当たり判定 ---
         if pg.sprite.spritecollide(bird, bombs, True):
+
+        
+            # GAME OVER表示
             font = pg.font.Font(None, 120)
             text = font.render("GAME OVER", True, (255, 0, 0))
             rect = text.get_rect(center=(WIDTH//2, HEIGHT//2 - 40))
+            elapsed_time = time.time() - start_time
             screen.blit(text, rect)
             font_time = pg.font.Font(None, 60)
             time_txt = font_time.render(f"Time: {elapsed_time:.1f}s", True, (255,255,255))
@@ -382,19 +421,15 @@ def main():
             pg.display.update()
             pg.time.wait(2200)  # 2.2秒表示
             return  # ゲーム終了
-            # pg.time.wait(2000)
-            # return
-
-        # walls.update()
+            
+    
         walls.draw(screen)
         # --- 経過時間の計算と表示（小数1桁まで） ---
         elapsed_time = time.time() - start_time
         font_time = pg.font.Font(None, 40)
         time_txt = font_time.render(f"Time: {elapsed_time:.1f}s", True, (255,255,255))
         screen.blit(time_txt, (10, 10))
-        # pg.time.wait(2000)
-        # return
-
+        
         # --- 全敵撃破でステージクリア ---
         if len(emys) == 0:
             font = pg.font.Font(None, 120) #フォントのオブジェクトを作成
@@ -424,7 +459,10 @@ def main():
         beams.draw(screen)
         bombs.update()
         bombs.draw(screen)
+        tougarasi.update(screen)
+        tougarasi.draw(screen)
         score.update(screen)
+        
         pg.display.update()
         tmr += 1
         clock.tick(50)
