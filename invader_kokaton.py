@@ -70,7 +70,10 @@ class Bird(pg.sprite.Sprite):
         if check_bound(self.rect) != (True, True):
             self.rect.move_ip(-self.speed*sum_mv[0], 0)
         if sum_mv[0] != 0:
-            self.dire = (sum_mv[0], 0)
+            if sum_mv[0] > 0:
+                self.dire = (+1, 0)
+            else:
+                self.dire = (-1, 0)
             self.image = self.imgs[self.dire]
         screen.blit(self.image, self.rect)
 
@@ -79,13 +82,16 @@ class Bomb(pg.sprite.Sprite):
 
     def __init__(self, emy: "Enemy", bird: Bird, speed=6):
         super().__init__()
-        rad = random.randint(8, 18)  # 小さめに
-        self.image = pg.Surface((2*rad, 2*rad))
-        color = random.choice(__class__.colors)
-        pg.draw.circle(self.image, color, (rad, rad), rad)
-        self.image.set_colorkey((0, 0, 0))
+        # 爆弾画像を使用（ランダムなサイズで拡大縮小、下側を進行方向に回転、上下反転）
+        orig_img = pg.image.load("fig/bomb.png")
+        orig_img = pg.transform.flip(orig_img, False, True)  # 上下反転
+        dx, dy = calc_orientation(emy.rect, bird.rect)
+        angle = math.degrees(math.atan2(dy, dx)) + 90
+        scale = random.uniform(0.15, 0.5)  # ランダムな倍率（小さめ～標準）
+        img = pg.transform.rotozoom(orig_img, -angle, scale)
+        self.image = img
         self.rect = self.image.get_rect()
-        self.vx, self.vy = calc_orientation(emy.rect, bird.rect)  
+        self.vx, self.vy = dx, dy
         self.rect.centerx = emy.rect.centerx
         self.rect.centery = emy.rect.centery+emy.rect.height//2
         self.speed = speed
@@ -246,8 +252,9 @@ class Stagechange:
         ]
 
     def get_bg_image(self):
-        if self.stage  < len(self.background_images):
-            return self.background_images[self.stage-1]
+        idx = self.stage - 1
+        if 0 <= idx < len(self.background_images):
+            return self.background_images[idx]
         else:
             return self.background_images[-1]
 
@@ -255,8 +262,9 @@ class Stagechange:
         self.stage += 1
         self.enemy_speed *= 1.5  # 速度を1.5倍
         self.bomb_speed *= 1.2
-        if self.stage-1 < len(self.every_imgs):
-            return self.every_imgs[self.stage-1]
+        idx = self.stage - 1
+        if 0 <= idx < len(self.every_imgs):
+            return self.every_imgs[idx]
         else:
             return self.every_imgs[-1]
 
