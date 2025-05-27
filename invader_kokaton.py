@@ -1,3 +1,17 @@
+import pygame as pg
+
+class Wall(pg.sprite.Sprite):
+    """ 壁クラス """
+    
+    def __init__(self, x, y, width=80, height=16):
+        super().__init__()
+        self.image = pg.Surface((width, height))
+        self.image.fill((180, 180, 180))
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (x, y)
+
+    def update(self):
+        pass
 import math
 import os
 import random
@@ -172,6 +186,17 @@ def mode_select(screen):
         rects.clear()
 
 def main():
+    # --- 壁グループの作成 ---
+    walls = pg.sprite.Group()
+    wall_width = 80
+    wall_height = 16
+    wall_gap = 40
+    base_y = HEIGHT - 140  # こうかとんの少し上
+    wall_xs = [WIDTH//4 - wall_width//2, WIDTH//2 - wall_width//2, 3*WIDTH//4 - wall_width//2]
+    # 2段分配置
+    for i in range(2):
+        for x in wall_xs:
+            walls.add(Wall(x, base_y - i*(wall_height+8), wall_width, wall_height))
     pg.display.set_caption("インベーダーこうかとん")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
 
@@ -214,6 +239,7 @@ def main():
 
     tmr = 0
     clock = pg.time.Clock()
+    start_time = time.time()  # 経過時間計測用
     while True:
         key_lst = pg.key.get_pressed()
         for event in pg.event.get():
@@ -229,7 +255,8 @@ def main():
 
         screen.blit(bg_img, [0, 0])
 
-        # --- ビームと敵・爆弾の当たり判定 ---
+
+        # --- ビームと敵・爆弾・壁の当たり判定 ---
         for beam in list(beams):
             hit_emys = pg.sprite.spritecollide(beam, emys, True)
             if hit_emys:
@@ -240,15 +267,57 @@ def main():
                 beam.kill()
                 continue
 
+            # 壁との当たり判定
+            hit_walls = pg.sprite.spritecollide(beam, walls, True)
+            if hit_walls:
+                beam.kill()
+                continue
+
+
+        # # --- 爆弾と壁の当たり判定 ---
+        # for bomb in list(bombs):
+        #     hit_walls = pg.sprite.spritecollide(bomb, walls, True)
+        #     if hit_walls:
+        #         bomb.kill()
+
+        #     # 壁との当たり判定
+        #     hit_walls = pg.sprite.spritecollide(beam, walls, True)
+        #     if hit_walls:
+        #         beam.kill()
+        #         continue
+
+
+        # --- 爆弾と壁の当たり判定 ---
+        for bomb in list(bombs):
+            hit_walls = pg.sprite.spritecollide(bomb, walls, True)
+            if hit_walls:
+                bomb.kill()
+
         # --- 爆弾とこうかとんの当たり判定 ---
         if pg.sprite.spritecollide(bird, bombs, True):
+            # GAME OVER表示と経過タイム表示
+            elapsed_time = time.time() - start_time
             font = pg.font.Font(None, 120)
             text = font.render("GAME OVER", True, (255, 0, 0))
-            rect = text.get_rect(center=(WIDTH//2, HEIGHT//2))
+            rect = text.get_rect(center=(WIDTH//2, HEIGHT//2 - 40))
             screen.blit(text, rect)
+            font_time = pg.font.Font(None, 60)
+            time_txt = font_time.render(f"Time: {elapsed_time:.1f}s", True, (255,255,255))
+            rect_time = time_txt.get_rect(center=(WIDTH//2, HEIGHT//2 + 40))
+            screen.blit(time_txt, rect_time)
             pg.display.update()
+            pg.time.wait(2200)  # 2.2秒表示
+            return  # ゲーム終了
             pg.time.wait(2000)
             return
+
+        walls.update()
+        walls.draw(screen)
+        # --- 経過時間の計算と表示（小数1桁まで） ---
+        elapsed_time = time.time() - start_time
+        font_time = pg.font.Font(None, 40)
+        time_txt = font_time.render(f"Time: {elapsed_time:.1f}s", True, (255,255,255))
+        screen.blit(time_txt, (10, 10))
 
         emys.update()
         emys.draw(screen)
