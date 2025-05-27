@@ -1,6 +1,8 @@
 import pygame as pg
 
 class Wall(pg.sprite.Sprite):
+    """ 壁クラス """
+    
     def __init__(self, x, y, width=80, height=16):
         super().__init__()
         self.image = pg.Surface((width, height))
