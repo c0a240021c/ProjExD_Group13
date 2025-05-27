@@ -1,3 +1,17 @@
+import pygame as pg
+
+class Wall(pg.sprite.Sprite):
+    """ 壁クラス """
+    
+    def __init__(self, x, y, width=80, height=16):
+        super().__init__()
+        self.image = pg.Surface((width, height))
+        self.image.fill((180, 180, 180))
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (x, y)
+
+    def update(self):
+        pass
 import math
 import os
 import random
@@ -172,6 +186,17 @@ def mode_select(screen):
         rects.clear()
 
 def main():
+    # --- 壁グループの作成 ---
+    walls = pg.sprite.Group()
+    wall_width = 80
+    wall_height = 16
+    wall_gap = 40
+    base_y = HEIGHT - 140  # こうかとんの少し上
+    wall_xs = [WIDTH//4 - wall_width//2, WIDTH//2 - wall_width//2, 3*WIDTH//4 - wall_width//2]
+    # 2段分配置
+    for i in range(2):
+        for x in wall_xs:
+            walls.add(Wall(x, base_y - i*(wall_height+8), wall_width, wall_height))
     pg.display.set_caption("インベーダーこうかとん")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
 
@@ -229,7 +254,8 @@ def main():
 
         screen.blit(bg_img, [0, 0])
 
-        # --- ビームと敵・爆弾の当たり判定 ---
+
+        # --- ビームと敵・爆弾・壁の当たり判定 ---
         for beam in list(beams):
             hit_emys = pg.sprite.spritecollide(beam, emys, True)
             if hit_emys:
@@ -239,6 +265,32 @@ def main():
             if hit_bombs:
                 beam.kill()
                 continue
+
+            # 壁との当たり判定
+            hit_walls = pg.sprite.spritecollide(beam, walls, True)
+            if hit_walls:
+                beam.kill()
+                continue
+
+
+        # # --- 爆弾と壁の当たり判定 ---
+        # for bomb in list(bombs):
+        #     hit_walls = pg.sprite.spritecollide(bomb, walls, True)
+        #     if hit_walls:
+        #         bomb.kill()
+
+        #     # 壁との当たり判定
+        #     hit_walls = pg.sprite.spritecollide(beam, walls, True)
+        #     if hit_walls:
+        #         beam.kill()
+        #         continue
+
+
+        # --- 爆弾と壁の当たり判定 ---
+        for bomb in list(bombs):
+            hit_walls = pg.sprite.spritecollide(bomb, walls, True)
+            if hit_walls:
+                bomb.kill()
 
         # --- 爆弾とこうかとんの当たり判定 ---
         if pg.sprite.spritecollide(bird, bombs, True):
@@ -250,6 +302,8 @@ def main():
             pg.time.wait(2000)
             return
 
+        walls.update()
+        walls.draw(screen)
         emys.update()
         emys.draw(screen)
         bird.update(key_lst, screen)
