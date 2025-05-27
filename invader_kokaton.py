@@ -145,6 +145,13 @@ class Score:
         screen.blit(self.image, self.rect)
 
 class Stagechange:
+    """
+    ステージの値を上げていく
+    敵の速度を挙げていく
+    弾速を上げていく
+    ステージごとの背景画像と敵の画像のリスト
+    ステージのインデックスがリストの中にあればそれを返しなければ一番最後の画像を返す、敵の画像も同様
+    """
     def __init__(self):
         self.stage = 1
         self.enemy_speed = 1.0
@@ -162,10 +169,20 @@ class Stagechange:
             pg.transform.scale(pg.image.load(f"fig/stage3.jpg"), (WIDTH, HEIGHT))   # ステージ4
         ]
 
-    def next_level(self):
+    def get_bg_image(self):
+        if self.stage  < len(self.background_images):
+            return self.background_images[self.stage-1]
+        else:
+            return self.background_images[-1]
+
+    def next_stage(self):
         self.stage += 1
         self.enemy_speed *= 1.5  # 速度を1.5倍
         self.bomb_speed *= 1.2
+        if self.stage-1 < len(self.every_imgs):
+            return self.every_imgs[self.stage-1]
+        else:
+            return self.every_imgs[-1]
 
 def main():
     pg.display.set_caption("インベーダーこうかとん")
@@ -236,18 +253,18 @@ def main():
 
         # --- 全敵撃破でステージクリア ---
         if len(emys) == 0:
-            font = pg.font.Font(None, 120)
-            text = font.render("GAME CLEAR", True, (0, 255, 0))
-            rect = text.get_rect(center=(WIDTH//2, HEIGHT//3))
-            screen.blit(text, rect)
-            pg.display.update()
-            pg.time.wait(2000)
+            font = pg.font.Font(None, 120) #フォントのオブジェクトを作成
+            text = font.render("GAME CLEAR", True, (0, 255, 0)) #ジャギングなしのgame clearの文字を作成
+            rect = text.get_rect(center=(WIDTH//2, HEIGHT//3)) # 文字の位置を取得する
+            screen.blit(text, rect) #textをrectの位置に書く
+            pg.display.update() #画面に表示する
+            pg.time.wait(2000) # 二秒待つ
             # 次のステージへ
-            imgs = stage_change.next_level()
-            emys = spawn_enemies(imgs, stage_change.enemy_speed)
-            bombs.empty()
-            beams.empty()
-            tmr = 0
+            imgs = stage_change.next_stage() #新しい画像を表示
+            emys = spawn_enemies(imgs, stage_change.enemy_speed) #次のimgsをspawn_enemiesに渡してemysに入れる
+            bombs.empty() #爆弾を空にしている
+            beams.empty() #ビームを空にしている
+            tmr = 0 #タイマーをゼロに
             continue
 
         emys.update()
