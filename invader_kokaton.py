@@ -127,15 +127,23 @@ class Explosion(pg.sprite.Sprite):
             self.kill()
 
 class Enemy(pg.sprite.Sprite):
-    imgs = [pg.image.load(f"fig/alien{i}.png") for i in range(1, 4)]
-    def __init__(self, pos: tuple[int, int]):
+    def __init__(self, pos: tuple[int, int], imgs, speed):
         super().__init__()
-        self.image = pg.transform.rotozoom(random.choice(__class__.imgs), 0, 0.8)
+        self.image = pg.transform.rotozoom(random.choice(imgs), 0, 0.8)
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
+        self.speed = speed
+        self.direction = 1  # 1:右, -1:左
 
     def update(self):
-        pass  # 動かさない
+        self.rect.move_ip(self.speed * self.direction, 0)
+        # 画面端で反転し、画面外に出ないようにする
+        if self.rect.right > WIDTH:
+            self.rect.right = WIDTH
+            self.direction = -1
+        elif self.rect.left < 0:
+            self.rect.left = 0
+            self.direction = 1
 
 class Score:
     def __init__(self):
@@ -184,6 +192,45 @@ def mode_select(screen):
                     if rect.collidepoint(mx, my):
                         return label.lower()
         rects.clear()
+class Stagechange:
+    """
+    ステージの値を上げていく
+    敵の速度を挙げていく
+    弾速を上げていく
+    ステージごとの背景画像と敵の画像のリスト
+    ステージのインデックスがリストの中にあればそれを返しなければ一番最後の画像を返す、敵の画像も同様
+    """
+    def __init__(self):
+        self.stage = 1
+        self.enemy_speed = 1.0
+        self.bomb_speed = 1.0
+        self.every_imgs = [
+            [pg.image.load(f"fig/alien1.png")],  # ステージ1
+            [pg.image.load(f"fig/alien2.png")],  # ステージ2
+            [pg.image.load(f"fig/alien3.png")],  # ステージ3
+            [pg.image.load(f"fig/alien4.png")]   # ステージ4
+        ]
+        self.background_images = [
+            pg.transform.scale(pg.image.load(f"fig/stage.jpg"), (WIDTH, HEIGHT)),  # ステージ1
+            pg.transform.scale(pg.image.load(f"fig/stage1.jpg"), (WIDTH, HEIGHT)),  # ステージ2
+            pg.transform.scale(pg.image.load(f"fig/stage2.jpg"), (WIDTH, HEIGHT)),  # ステージ3
+            pg.transform.scale(pg.image.load(f"fig/stage3.jpg"), (WIDTH, HEIGHT))   # ステージ4
+        ]
+
+    def get_bg_image(self):
+        if self.stage  < len(self.background_images):
+            return self.background_images[self.stage-1]
+        else:
+            return self.background_images[-1]
+
+    def next_stage(self):
+        self.stage += 1
+        self.enemy_speed *= 1.5  # 速度を1.5倍
+        self.bomb_speed *= 1.2
+        if self.stage-1 < len(self.every_imgs):
+            return self.every_imgs[self.stage-1]
+        else:
+            return self.every_imgs[-1]
 
 def main():
     # --- 壁グループの作成 ---
@@ -216,6 +263,23 @@ def main():
     bg_img = pg.image.load(f"fig/stage.jpg")
     bg_img = pg.transform.scale(bg_img, (WIDTH, HEIGHT))
     score = Score()
+    stage_change = Stagechange()
+
+    def spawn_enemies(imgs, speed):
+        emys = pg.sprite.Group()
+        enemy_margin_x = 80
+        enemy_margin_y = 70
+        enemy_cols = 5
+        enemy_rows = 3
+        enemy_width = 64
+        total_width = enemy_margin_x * (enemy_cols - 1) + enemy_width
+        start_x = (WIDTH - total_width) // 2
+        for row in range(enemy_rows):
+            for col in range(enemy_cols):
+                x = start_x + col * enemy_margin_x
+                y = 60 + row * enemy_margin_y
+                emys.add(Enemy((x, y), imgs, speed))
+        return emys
 
     bird = Bird(3, (WIDTH//2, HEIGHT - 40))
     beams = pg.sprite.Group()
@@ -235,7 +299,9 @@ def main():
         for col in range(enemy_cols):
             x = start_x + col * enemy_margin_x
             y = 60 + row * enemy_margin_y
-            emys.add(Enemy((x, y)))
+            # emys.add(Enemy((x, y)))
+    emys = spawn_enemies(stage_change.every_imgs[0], stage_change.enemy_speed)
+    bombs = pg.sprite.Group()
 
     tmr = 0
     clock = pg.time.Clock()
@@ -252,11 +318,16 @@ def main():
         if tmr % bomb_interval == 0 and len(emys) > 0:
             emy = random.choice(emys.sprites())
             bombs.add(Bomb(emy, bird, bomb_speed))
+        # --- 敵の爆弾発射 ---
+        if tmr % 30 == 0 and len(emys) > 0:
+            emy = random.choice(emys.sprites())
+            bombs.add(Bomb(emy, bird, speed=6*stage_change.bomb_speed))
 
-        screen.blit(bg_img, [0, 0])
+        screen.blit(stage_change.get_bg_image(), [0, 0])
 
 
         # --- ビームと敵・爆弾・壁の当たり判定 ---
+        # --- ビームと敵・爆弾の当たり判定 ---
         for beam in list(beams):
             hit_emys = pg.sprite.spritecollide(beam, emys, True)
             if hit_emys:
@@ -294,9 +365,12 @@ def main():
                 bomb.kill()
 
         # --- 爆弾とこうかとんの当たり判定 ---
-        if pg.sprite.spritecollide(bird, bombs, True):
+        # if pg.sprite.spritecollide(bird, bombs, True):
             # GAME OVER表示と経過タイム表示
-            elapsed_time = time.time() - start_time
+            # elapsed_time = time.time() - start_time
+
+        # --- 爆弾とこうかとんの当たり判定 ---
+        if pg.sprite.spritecollide(bird, bombs, True):
             font = pg.font.Font(None, 120)
             text = font.render("GAME OVER", True, (255, 0, 0))
             rect = text.get_rect(center=(WIDTH//2, HEIGHT//2 - 40))
@@ -308,16 +382,40 @@ def main():
             pg.display.update()
             pg.time.wait(2200)  # 2.2秒表示
             return  # ゲーム終了
-            pg.time.wait(2000)
-            return
+            # pg.time.wait(2000)
+            # return
 
-        walls.update()
+        # walls.update()
         walls.draw(screen)
         # --- 経過時間の計算と表示（小数1桁まで） ---
         elapsed_time = time.time() - start_time
         font_time = pg.font.Font(None, 40)
         time_txt = font_time.render(f"Time: {elapsed_time:.1f}s", True, (255,255,255))
         screen.blit(time_txt, (10, 10))
+        # pg.time.wait(2000)
+        # return
+
+        # --- 全敵撃破でステージクリア ---
+        if len(emys) == 0:
+            font = pg.font.Font(None, 120) #フォントのオブジェクトを作成
+            text = font.render("GAME CLEAR", True, (0, 255, 0)) #ジャギングなしのgame clearの文字を作成
+            rect = text.get_rect(center=(WIDTH//2, HEIGHT//3)) # 文字の位置を取得する
+            screen.blit(text, rect) #textをrectの位置に書く
+
+            pg.display.update() #画面に表示する
+            pg.time.wait(2000) # 二秒待つ
+            # 次のステージへ
+            imgs = stage_change.next_stage() #新しい画像を表示
+            emys = spawn_enemies(imgs, stage_change.enemy_speed) #次のimgsをspawn_enemiesに渡してemysに入れる
+            bombs.empty() #爆弾を空にしている
+            beams.empty() #ビームを空にしている
+            tmr = 0 #タイマーをゼロに
+            # 壁を復活させる
+            walls.empty()
+            for i in range(2):
+                for x in wall_xs:
+                    walls.add(Wall(x, base_y - i*(wall_height+8), wall_width, wall_height))
+            continue
 
         emys.update()
         emys.draw(screen)
